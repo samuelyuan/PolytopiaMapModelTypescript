@@ -42,15 +42,6 @@ export interface MapHeaderOutput {
     mapHeight: number;
 }
 
-function readFixedList(buffer: DataView, offset: number, length: number): number[] {
-    const list = [];
-    for (let i = 0; i < length; i++) {
-        list.push(buffer.getUint8(offset));
-        offset += 1;
-    }
-    return list;
-}
-
 export function deserializeMapHeaderFromBytes(buffer: Buffer, offset: number): [MapHeaderOutput, number] {
     const mapHeaderInput: MapHeaderInput = {
         version1: buffer.readUInt32LE(offset),
@@ -152,83 +143,84 @@ export function deserializeMapHeaderFromBytes(buffer: Buffer, offset: number): [
     return [mapHeaderOutput, offset];
 }
 
-export function serializeMapHeaderToBytes(mapHeaderOutput: MapHeaderOutput): ArrayBuffer {
-    const buffer = new ArrayBuffer(1024); // Adjust size as needed
-    const dataView = new DataView(buffer);
+export function serializeMapHeaderToBytes(mapHeaderOutput: MapHeaderOutput): Buffer {
+    const estimatedSize = 1024 + mapHeaderOutput.mapName.length + mapHeaderOutput.disabledTribesArr.length * 2 + mapHeaderOutput.unlockedTribesArr.length * 2 + mapHeaderOutput.selectedTribeSkins.length * 4;
+    const buffer = Buffer.alloc(estimatedSize);
     let offset = 0;
 
     const mapHeaderInput = mapHeaderOutput.mapHeaderInput;
-    dataView.setUint32(offset, mapHeaderInput.version1, true);
-    dataView.setUint32(offset += 4, mapHeaderInput.version2, true);
-    dataView.setUint16(offset += 4, mapHeaderInput.totalActions, true);
-    dataView.setUint32(offset += 2, mapHeaderInput.currentTurn, true);
-    dataView.setUint8(offset += 4, mapHeaderInput.currentPlayerIndex);
-    dataView.setUint32(offset += 1, mapHeaderInput.maxUnitId, true);
-    dataView.setUint8(offset += 4, mapHeaderInput.currentGameState);
-    dataView.setInt32(offset += 1, mapHeaderInput.seed, true);
-    dataView.setUint32(offset += 4, mapHeaderInput.turnLimit, true);
-    dataView.setUint32(offset += 4, mapHeaderInput.scoreLimit, true);
-    dataView.setUint8(offset += 4, mapHeaderInput.winByCapital);
-    new Uint8Array(buffer, offset += 1, 6).set(mapHeaderInput.unknownSettings);
-    dataView.setUint8(offset += 6, mapHeaderInput.gameModeBase);
-    dataView.setUint8(offset += 1, mapHeaderInput.gameModeRules);
+    buffer.writeUInt32LE(mapHeaderInput.version1, offset);
+    buffer.writeUInt32LE(mapHeaderInput.version2, offset += 4);
+    buffer.writeUInt16LE(mapHeaderInput.totalActions, offset += 4);
+    buffer.writeUInt32LE(mapHeaderInput.currentTurn, offset += 2);
+    buffer.writeUInt8(mapHeaderInput.currentPlayerIndex, offset += 4);
+    buffer.writeUInt32LE(mapHeaderInput.maxUnitId, offset += 1);
+    buffer.writeUInt8(mapHeaderInput.currentGameState, offset += 4);
+    buffer.writeInt32LE(mapHeaderInput.seed, offset += 1);
+    buffer.writeUInt32LE(mapHeaderInput.turnLimit, offset += 4);
+    buffer.writeUInt32LE(mapHeaderInput.scoreLimit, offset += 4);
+    buffer.writeUInt8(mapHeaderInput.winByCapital, offset += 4);
+    buffer.set(mapHeaderInput.unknownSettings, offset += 1);
+    offset += 6;
+    buffer.writeUInt8(mapHeaderInput.gameModeBase, offset);
+    buffer.writeUInt8(mapHeaderInput.gameModeRules, offset += 1);
 
-    const mapNameBytes = new TextEncoder().encode(mapHeaderOutput.mapName);
-    dataView.setUint8(offset += 1, mapNameBytes.length);
-    new Uint8Array(buffer, offset += 1, mapNameBytes.length).set(mapNameBytes);
+    const mapNameBytes = Buffer.from(mapHeaderOutput.mapName, 'utf-8');
+    buffer.writeUInt8(mapNameBytes.length, offset += 1);
+    mapNameBytes.copy(buffer, offset += 1);
     offset += mapNameBytes.length;
 
-    dataView.setUint32(offset, mapHeaderOutput.mapSquareSize, true);
+    buffer.writeUInt32LE(mapHeaderOutput.mapSquareSize, offset);
     offset += 4;
 
-    dataView.setUint16(offset, mapHeaderOutput.disabledTribesArr.length, true);
+    buffer.writeUInt16LE(mapHeaderOutput.disabledTribesArr.length, offset);
     offset += 2;
     for (const tribe of mapHeaderOutput.disabledTribesArr) {
-        dataView.setUint16(offset, tribe, true);
+        buffer.writeUInt16LE(tribe, offset);
         offset += 2;
     }
 
-    dataView.setUint16(offset, mapHeaderOutput.unlockedTribesArr.length, true);
+    buffer.writeUInt16LE(mapHeaderOutput.unlockedTribesArr.length, offset);
     offset += 2;
     for (const tribe of mapHeaderOutput.unlockedTribesArr) {
-        dataView.setUint16(offset, tribe, true);
+        buffer.writeUInt16LE(tribe, offset);
         offset += 2;
     }
 
-    dataView.setUint16(offset, mapHeaderOutput.gameDifficulty, true);
+    buffer.writeUInt16LE(mapHeaderOutput.gameDifficulty, offset);
     offset += 2;
-    dataView.setUint32(offset, mapHeaderOutput.numOpponents, true);
+    buffer.writeUInt32LE(mapHeaderOutput.numOpponents, offset);
     offset += 4;
-    dataView.setUint16(offset, mapHeaderOutput.gameType, true);
+    buffer.writeUInt16LE(mapHeaderOutput.gameType, offset);
     offset += 2;
-    dataView.setUint8(offset, mapHeaderOutput.mapPreset);
+    buffer.writeUInt8(mapHeaderOutput.mapPreset, offset);
     offset += 1;
-    dataView.setInt32(offset, mapHeaderOutput.turnTimeLimitMinutes, true);
+    buffer.writeInt32LE(mapHeaderOutput.turnTimeLimitMinutes, offset);
     offset += 4;
-    dataView.setFloat32(offset, mapHeaderOutput.unknownFloat1, true);
+    buffer.writeFloatLE(mapHeaderOutput.unknownFloat1, offset);
     offset += 4;
-    dataView.setFloat32(offset, mapHeaderOutput.unknownFloat2, true);
+    buffer.writeFloatLE(mapHeaderOutput.unknownFloat2, offset);
     offset += 4;
-    dataView.setFloat32(offset, mapHeaderOutput.baseTimeSeconds, true);
+    buffer.writeFloatLE(mapHeaderOutput.baseTimeSeconds, offset);
     offset += 4;
     for (const timeSetting of mapHeaderOutput.timeSettings) {
-        dataView.setUint8(offset, timeSetting);
+        buffer.writeUInt8(timeSetting, offset);
         offset += 1;
     }
 
-    dataView.setUint32(offset, mapHeaderOutput.selectedTribeSkins.length, true);
+    buffer.writeUInt32LE(mapHeaderOutput.selectedTribeSkins.length, offset);
     offset += 4;
     for (const tribeSkin of mapHeaderOutput.selectedTribeSkins) {
-        dataView.setUint16(offset, tribeSkin.tribe, true);
+        buffer.writeUInt16LE(tribeSkin.tribe, offset);
         offset += 2;
-        dataView.setUint16(offset, tribeSkin.skin, true);
+        buffer.writeUInt16LE(tribeSkin.skin, offset);
         offset += 2;
     }
 
-    dataView.setUint16(offset, mapHeaderOutput.mapWidth, true);
+    buffer.writeUInt16LE(mapHeaderOutput.mapWidth, offset);
     offset += 2;
-    dataView.setUint16(offset, mapHeaderOutput.mapHeight, true);
+    buffer.writeUInt16LE(mapHeaderOutput.mapHeight, offset);
     offset += 2;
 
-    return buffer.slice(0, offset);
+    return buffer.subarray(0, offset);
 }

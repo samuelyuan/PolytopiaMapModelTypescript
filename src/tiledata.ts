@@ -1,5 +1,19 @@
-import { deserializeImprovementDataFromBytes, serializeImprovementDataToBytes, ImprovementData } from "./improvementdata";
-import { convertUint32Bytes, convertInt32Bytes, convertUint16Bytes, convertBoolToByte, convertByteList } from './writer';
+import { 
+  deserializeImprovementDataFromBytes, 
+  serializeImprovementDataToBytes, 
+  ImprovementData,
+} from "./improvementdata";
+import {
+  convertByteListToInt,
+  readFixedList,
+} from './reader';
+import {
+  convertBoolToByte,
+  convertByteList,
+  convertInt32Bytes,
+  convertUint16Bytes,
+  convertUint32Bytes,
+} from './writer';
 
 interface TileDataHeader {
   worldCoordinates: [number, number];
@@ -289,19 +303,6 @@ export function serializeUnitDataToBytes(unitData: UnitData): Buffer {
     Buffer.from([convertBoolToByte(unitData.flipped)]),
     convertUint16Bytes(unitData.createdTurn),
   ]);
-}
-
-// Helper functions
-function readFixedList(buffer: Buffer, offset: number, length: number): number[] {
-  const list: number[] = [];
-  for (let i = 0; i < length; i++) {
-    list.push(buffer.readUInt8(offset + i));
-  }
-  return list;
-}
-
-function convertByteListToInt(byteList: number[]): number[] {
-  return byteList.map(byte => byte);
 }
 
 export function deserializeUnitDataFromBytes(buffer: Buffer, offset: number): [UnitData, number] {
